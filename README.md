@@ -18,6 +18,7 @@
 - 🐍 **Python 3.8 or higher**
 - 🔍 **Gitleaks** installed on your system ([Installation Guide](https://github.com/zricethezav/gitleaks))
 - 🔍 **Git** installed on your system ([Installation Guide](https://git-scm.com/downloads))
+- **Ensure using rules.toml file**
 
 ## 📦 Installation
 
