@@ -4,20 +4,20 @@
 [[rules]]
 id = "aws-access-key"
 description = "AWS Access Key"
-regex = '''(?i)\baws[\s_-]*access[\s_-]*key(?:_id)?[\s:=-]*["']?(AKIA[0-9A-Z]{16})["']?'''
+regex = '''(?i)\b(?:aws[\s_-]*access[\s_-]*key(?:_id)?|awsAccessKeyId)\s*[:=]\s*["']?(AKIA[0-9A-Z]{16})["']?'''
 tags = ["AWS", "key"]
 
 [[rules]]
 id = "aws-secret-key"
 description = "AWS Secret Key"
-regex = '''(?i)\baws[\s_-]*secret[\s_-]*(?:access[\s_-]*)?key[\s:=-]*["']?([A-Za-z0-9/+=]{40})["']?'''
+regex = '''(?i)\b(?:aws[\s_-]*secret[\s_-]*(?:access[\s_-]*)?key|awsSecretAccessKey)\s*[:=]\s*["']?([A-Za-z0-9/+=]{40})["']?'''
 tags = ["AWS", "key"]
 entropy = 4.5
 
 [[rules]]
 id = "aws-credentials-combined"
 description = "AWS Credentials Combined"
-regex = '''(?i)("?(aws_access_key_id)"?\s*[:=]\s*"?AKIA[0-9A-Z]{16}"?\s*[,\n]\s*("?(aws_secret_access_key)"?\s*[:=]\s*"?[A-Za-z0-9/+=]{40}"?))'''
+regex = '''(?i)(?:"?(?:aws_access_key_id|awsAccessKeyId)"?\s*[:=]\s*"?AKIA[0-9A-Z]{16}"?\s*[,\n]\s*(?:"?(?:aws_secret_access_key|awsSecretAccessKey)"?\s*[:=]\s*"?[A-Za-z0-9/+=]{40}"?))'''
 tags = ["AWS", "key"]
 
 # -------------------------------
@@ -26,26 +26,26 @@ tags = ["AWS", "key"]
 [[rules]]
 id = "azure-client-id"
 description = "Azure Client ID"
-regex = '''(?i)\bAZURE[\s_-]*CLIENT[\s_-]*ID[\s:=-]*["']?([0-9a-fA-F-]{36})["']?'''
+regex = '''(?i)\b(?:azure[\s_-]*client[\s_-]*id|azureClientId)\s*[:=]\s*["']?([0-9a-fA-F-]{36})["']?'''
 tags = ["Azure", "key"]
 
 [[rules]]
 id = "azure-tenant-id"
 description = "Azure Tenant ID"
-regex = '''(?i)\bAZURE[\s_-]*TENANT[\s_-]*ID[\s:=-]*["']?([0-9a-fA-F-]{36})["']?'''
+regex = '''(?i)\b(?:azure[\s_-]*tenant[\s_-]*id|azureTenantId)\s*[:=]\s*["']?([0-9a-fA-F-]{36})["']?'''
 tags = ["Azure", "key"]
 
 [[rules]]
 id = "azure-client-secret"
 description = "Azure Client Secret"
-regex = '''(?i)\bAZURE[\s_-]*CLIENT[\s_-]*SECRET[\s:=-]*["']?([A-Za-z0-9+/=]{20,})["']?'''
+regex = '''(?i)\b(?:azure[\s_-]*client[\s_-]*secret|azureClientSecret)\s*[:=]\s*["']?([A-Za-z0-9+/=]{20,})["']?'''
 tags = ["Azure", "key"]
 entropy = 4.5
 
 [[rules]]
 id = "azure-credentials-combined"
 description = "Azure Credentials Combined"
-regex = '''(?i)("?(client_id)"?\s*[:=]\s*"?[0-9a-fA-F-]{36}"?\s*[,\n]\s*("?(client_secret)"?\s*[:=]\s*"?[A-Za-z0-9+/=]{20,}"?\s*[,\n]\s*("?(tenant_id)"?\s*[:=]\s*"?[0-9a-fA-F-]{36}"?)))'''
+regex = '''(?i)(?:"?(?:client_id|azureClientId)"?\s*[:=]\s*"?[0-9a-fA-F-]{36}"?\s*[,\n]\s*(?:"?(?:client_secret|azureClientSecret)"?\s*[:=]\s*"?[A-Za-z0-9+/=]{20,}"?\s*[,\n]\s*(?:"?(?:tenant_id|azureTenantId)"?\s*[:=]\s*"?[0-9a-fA-F-]{36}"?)))'''
 tags = ["Azure", "key"]
 
 # -------------------------------
@@ -94,7 +94,7 @@ tags = ["Google", "key"]
 id = "heroku-api-key"
 description = "Heroku API Key"
 regex = '''(?i)\bheroku[a-z0-9]{30,32}\b'''
-tags = ["key", "heroku", "api"]
+tags = ["heroku", "key", "api"]
 
 [[rules]]
 id = "digitalocean-token"
@@ -118,13 +118,15 @@ tags = ["Twilio", "key"]
 id = "telegram-bot-token"
 description = "Detects Telegram Bot API Tokens"
 regex = '''(?i)(?:^|\s)(\d{8,10}:[a-zA-Z0-9_-]{35})(?:\s|$)'''
-tags = ["key", "telegram"]
+tags = ["telegram", "key"]
 
 [[rules]]
 id = "facebook-access-token"
 description = "Facebook Access Token"
-regex = '''(?i)\bEAAC[a-zA-Z0-9]+\b'''
+# Require token to start with EAAC and have at least 36 characters total (EAAC + at least 32 alphanumerics)
+regex = '''(?i)\bEAAC[a-zA-Z0-9]{32,}\b'''
 tags = ["Facebook", "token"]
+entropy = 4.0
 
 [[rules]]
 id = "gitlab-pat"
@@ -135,8 +137,47 @@ tags = ["GitLab", "token"]
 [[rules]]
 id = "generic-api-token"
 description = "Generic API Token Pattern"
-regex = '''(?i)\bapi[_-]?token\s*[:=]\s*["']?[A-Za-z0-9]{20,}["']?\b'''
-tags = ["token", "generic"]
+# Requires a delimiter (whitespace, colon, or equals) after the key name,
+# then an optional quote, at least 20 alphanumeric characters, optional closing quote,
+# ending at a word boundary.
+regex = '''(?i)\b(?:api[_-]?token|token)[\s:=]+["']?([A-Za-z0-9]{20,})["']?\b'''
+tags = ["generic", "token"]
+
+[[rules]]
+id = "sentry-dsn"
+description = "Sentry DSN"
+regex = '''(?i)https:\/\/[0-9a-z]+:[0-9a-z]+@o\d+\.ingest\.sentry\.io\/\d+'''
+tags = ["sentry", "dsn", "token"]
+
+[[rules]]
+id = "mailgun-api-key"
+description = "Mailgun API Key"
+regex = '''(?i)\bmailgun[ _-]*api[ _-]*key[ _:=]*["']?(key-[0-9a-zA-Z]{32,})["']?'''
+tags = ["mailgun", "key", "api"]
+
+[[rules]]
+id = "postmark-api-key"
+description = "Postmark API Key"
+regex = '''(?i)\bpostmark[ _-]*api[ _-]*key[ _:=]*["']?([0-9a-zA-Z]{40,})["']?'''
+tags = ["postmark", "key", "api"]
+
+[[rules]]
+id = "pusher-api-key"
+description = "Pusher API Key"
+regex = '''(?i)\bpusher[ _-]*key[ _:=]*["']?([0-9a-zA-Z]{20,})["']?'''
+tags = ["pusher", "key", "api"]
+
+[[rules]]
+id = "square-access-token"
+description = "Square Access Token"
+regex = '''(?i)\bsq0atp-[0-9A-Za-z\-_]{22,}'''
+tags = ["square", "token"]
+
+[[rules]]
+id = "intercom-token"
+description = "Intercom Token"
+regex = '''(?i)\bintercom[ _-]*token[ _:=]*["']?([0-9a-zA-Z]{30,})["']?'''
+tags = ["intercom", "token"]
 
 # -------------------------------
 # Other Sensitive Patterns
@@ -145,7 +186,7 @@ tags = ["token", "generic"]
 id = "rsa-private-key"
 description = "RSA Private Key"
 regex = '''(?i)(-----BEGIN RSA PRIVATE KEY-----[\s\S]*?-----END RSA PRIVATE KEY-----)'''
-tags = ["Private Key", "RSA"]
+tags = ["RSA", "private key"]
 
 [[rules]]
 id = "jwt-token"
@@ -177,7 +218,7 @@ allowlist = { regexes = [
 id = "dropbox-api-key"
 description = "Dropbox API Key"
 regex = '''(?i)\bsl\.[A-Za-z0-9_-]{15,}\b'''
-tags = ["Dropbox", "key"]
+tags = ["dropbox", "key"]
 allowlist = { regexes = ["(?i)^sl\\.isconcatspreadable$", "(?i)^sl\\.splice$", "(?i)^sl\\.iterator$"] }
 
 # -------------------------------
