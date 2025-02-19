@@ -99,8 +99,7 @@ def download_repository(repo_url, destination_dir, token=None):
         base_destination = os.path.join(destination_dir, repo_name)
         destination = base_destination
 
-        console.print(f"[blue]Cloning repository {repo_name}...[/blue]")
-
+        
         # Add token for private repositories
         if token:
             repo_url = repo_url.replace("https://", f"https://{token}@")
@@ -113,7 +112,6 @@ def download_repository(repo_url, destination_dir, token=None):
 
         # Clone the repository into the unique directory
         subprocess.run(["git", "clone", "--quiet", repo_url, destination], check=True)
-        console.print(f"[green]Repository {repo_name} downloaded successfully into {destination}![/green]")
         return destination
 
     except subprocess.CalledProcessError as e:
@@ -473,7 +471,7 @@ def run_gitleaks(repo_path, rule_file):
     Handles multiple AWS and Azure credentials and avoids duplicate validation.
     """
     try:
-        console.print(Panel(f"🔍 [blue]Running Gitleaks on [bold]{repo_path}[/bold]...[/blue]", box=DOUBLE))
+        #console.print(Panel(f"🔍 [blue]Running Gitleaks on [bold]{repo_path}[/bold]...[/blue]", box=DOUBLE))
         result = subprocess.run(
             ["gitleaks", "detect", "-s", repo_path, "-v", "--no-banner", f"-c={rule_file}"],
             capture_output=True,
@@ -481,7 +479,7 @@ def run_gitleaks(repo_path, rule_file):
         )
 
         if result.returncode == 0:
-            console.print(Panel("[green]✅ No sensitive data found![/green]", title="Gitleaks Result", box=DOUBLE))
+            #console.print(Panel("[green]✅ No sensitive data found![/green]", title="Gitleaks Result", box=DOUBLE))
             delete_repository(repo_path)
 
         elif result.returncode == 1:
@@ -491,12 +489,12 @@ def run_gitleaks(repo_path, rule_file):
             aws_access_keys = [
                 "AWS_ACCESS_KEY_ID", "aws_access_key", "Access Key",
                 "awsAccessKeyId", "accessKeyId", "access_key_id", "AWS_KEY",
-                "awsKey", "AWSAccessKey"
+                "awsKey", "AWSAccessKey","aws_access_key_id"
             ]
             aws_secret_keys = [
                 "AWS_SECRET_ACCESS_KEY", "aws_secret_access", "Secret Key",
                 "awsSecretAccessKey", "secret_key", "AWS_SECRET",
-                "awsSecret", "AWSSecretKey", "secretAccessKey"
+                "awsSecret", "AWSSecretKey", "secretAccessKey","aws_secret_access_key"
             ]
             azure_client_ids = [
                 "AZURE_CLIENT_ID", "azure_client_id", "Client ID",
@@ -606,6 +604,7 @@ def run_gitleaks(repo_path, rule_file):
                     validate_dropbox_api_key(api_key)
 
                 console.print(dropbox_table)
+            
 
                     
 
@@ -662,7 +661,7 @@ def run_gitleaks(repo_path, rule_file):
                 console.print(Panel(f"[green]Some items, maybe some [yellow]Passwords[/yellow] were detected! by gitleaks in [yellow]{repo_path}[/yellow], check it manually[/green]", title="Generic Secrets ", box=DOUBLE))
 
         else:
-            console.print(Panel("[green]Some items were detected![/green]", title="Generic Secrets ", box=DOUBLE))
+            console.print(Panel("[red]Please ensure to user gitleaks rules.toml file[/red]", title="Generic Secrets ", box=DOUBLE))
     except FileNotFoundError:
         console.print(f"[red]❌ Gitleaks is not installed or not in PATH. Please install Gitleaks and try again.[/red]")
     except Exception as e:
@@ -674,7 +673,7 @@ def delete_repository(repo_path):
     try:
         if os.path.exists(repo_path):
             shutil.rmtree(repo_path)
-            console.print(f"[yellow]🗑️ Deleted repository: {repo_path}[/yellow]")
+            #console.print(f"[yellow]🗑️ Deleted repository: {repo_path}[/yellow]")
         else:
             console.print(f"[red]⚠️ Repository not found: {repo_path}[/red]")
     except Exception as e:
