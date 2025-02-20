@@ -21,7 +21,7 @@ from azure.identity import ClientSecretCredential
 from azure.mgmt.resource import SubscriptionClient
 from azure.core.exceptions import AzureError
 import shutil
-
+import sys
 
 # Initialize console for colorful output
 console = Console()
@@ -464,37 +464,38 @@ def extract_all_values(text, keywords):
     return list(values)
 
 console = Console()
-
 def run_gitleaks(repo_path, rule_file):
     """
     Run Gitleaks against the specified repository and process its findings.
-    Handles multiple AWS and Azure credentials and avoids duplicate validation.
+    Known secrets (AWS, Azure, Slack, etc.) are extracted and displayed in tables.
+    Any remaining (general) secrets that do not match these services are printed via general_secret.
     """
     try:
-        #console.print(Panel(f"🔍 [blue]Running Gitleaks on [bold]{repo_path}[/bold]...[/blue]", box=DOUBLE))
         result = subprocess.run(
             ["gitleaks", "detect", "-s", repo_path, "-v", "--no-banner", f"-c={rule_file}"],
             capture_output=True,
-            text=True, encoding='utf-8', errors='replace'
+            text=True,
+            encoding='utf-8',
+            errors='replace'
         )
 
         if result.returncode == 0:
-            #console.print(Panel("[green]✅ No sensitive data found![/green]", title="Gitleaks Result", box=DOUBLE))
+            # No sensitive data found; remove the repository.
             delete_repository(repo_path)
 
         elif result.returncode == 1:
             findings = result.stdout.strip()
 
-            # AWS and Azure keywords
+            # Define keyword lists for various services.
             aws_access_keys = [
                 "AWS_ACCESS_KEY_ID", "aws_access_key", "Access Key",
                 "awsAccessKeyId", "accessKeyId", "access_key_id", "AWS_KEY",
-                "awsKey", "AWSAccessKey","aws_access_key_id"
+                "awsKey", "AWSAccessKey", "aws_access_key_id"
             ]
             aws_secret_keys = [
                 "AWS_SECRET_ACCESS_KEY", "aws_secret_access", "Secret Key",
                 "awsSecretAccessKey", "secret_key", "AWS_SECRET",
-                "awsSecret", "AWSSecretKey", "secretAccessKey","aws_secret_access_key"
+                "awsSecret", "AWSSecretKey", "secretAccessKey", "aws_secret_access_key"
             ]
             azure_client_ids = [
                 "AZURE_CLIENT_ID", "azure_client_id", "Client ID",
@@ -508,7 +509,6 @@ def run_gitleaks(repo_path, rule_file):
                 "AZURE_CLIENT_SECRET", "azure_client_secret", "Client Secret",
                 "azureClientSecret", "client_secret", "\"client_secret\""
             ]
-            # Slack token keywords
             slack_tokens = [
                 "SLACK_API_TOKEN", "slack_api_token", "Slack API Token",
                 "xoxb-", "xoxp-", "xoxa-", "slack_token", "Bot Token", "user_token"
@@ -521,151 +521,238 @@ def run_gitleaks(repo_path, rule_file):
                 "STRIPE_API_KEY", "stripe_api_key", "sk_live_", "sk_test_",
                 "(sk_live_[0-9a-zA-Z]{24})"
             ]
-            github_personal_access_tokens = ["ghp_", "Token"]
+            github_personal_access_tokens = ["ghp_"]
             twilio_api_keys = ["SK", "Key SID"]
             dropbox_api_keys = ["sl.", "API Key"]
 
-
+            # Extract secrets for each service.
+            slack_token_list = extract_multiple_values(findings, slack_tokens, repo_path)
+            heroku_api_key_list = extract_multiple_values(findings, heroku_api_keys, repo_path)
+            stripe_api_key_list = extract_multiple_values(findings, stripe_api_keys, repo_path)
             github_tokens_list = extract_multiple_values(findings, github_personal_access_tokens, repo_path)
             twilio_api_key_list = extract_multiple_values(findings, twilio_api_keys, repo_path)
             dropbox_api_key_list = extract_multiple_values(findings, dropbox_api_keys, repo_path)
-            stripe_api_key_list = extract_multiple_values(findings, stripe_api_keys, repo_path)
-            slack_token_list = extract_multiple_values(findings, slack_tokens, repo_path)
-            heroku_api_key_list = extract_multiple_values(findings, heroku_api_keys, repo_path)
 
-
-
-            if slack_token_list:
-                slack_table = Table(title="Detected Slack Tokens", box=DOUBLE, show_lines=True)
-                slack_table.add_column("File", style="cyan")
-                slack_table.add_column("Token", style="green")
-
-                for token, file in slack_token_list:
-                    slack_table.add_row(file, token  if token else "N/A")
-                    validate_slack_token(token)
-
-                console.print(slack_table)
-            if heroku_api_key_list:
-                heroku_table = Table(title="Detected Heroku API Keys", box=DOUBLE, show_lines=True)
-                heroku_table.add_column("File", style="cyan")
-                heroku_table.add_column("API Key", style="green")
-
-                for api_key, file in heroku_api_key_list:
-                    heroku_table.add_row(file, api_key if api_key else "N/A")
-                    validate_heroku_api_key(api_key)
-
-                console.print(heroku_table)
-            
-             # Validate and print Stripe API keys
-            if stripe_api_key_list:
-                stripe_table = Table(title="Detected Stripe API Keys", box=DOUBLE, show_lines=True)
-                stripe_table.add_column("File", style="cyan")
-                stripe_table.add_column("API Key", style="green")
-
-                for api_key, file in stripe_api_key_list:
-                    stripe_table.add_row(file, api_key  if api_key else "N/A")
-                    validate_stripe_api_key(api_key)
-
-                console.print(stripe_table)
-
-            # Validate and display GitHub tokens
-            if github_tokens_list:
-                github_table = Table(title="Detected GitHub Personal Access Tokens", box=DOUBLE, show_lines=True)
-                github_table.add_column("File", style="cyan")
-                github_table.add_column("Token", style="green")
-
-                for token, file in github_tokens_list:
-                    github_table.add_row(file, token  if token else "N/A")
-                    validate_github_personal_access_token(token)
-
-                console.print(github_table)
-
-            # Validate and display Twilio API keys
-            if twilio_api_key_list:
-                twilio_table = Table(title="Detected Twilio API Keys", box=DOUBLE, show_lines=True)
-                twilio_table.add_column("File", style="cyan")
-                twilio_table.add_column("API Key", style="green")
-
-                for api_key, file in twilio_api_key_list:
-                    twilio_table.add_row(file, api_key if api_key else "N/A")
-                    # Replace 'your_auth_token' with an actual token or retrieve it dynamically
-                    validate_twilio_api_key(api_key, "your_auth_token")
-
-                console.print(twilio_table)
-
-            # Validate and display Dropbox API keys
-            if dropbox_api_key_list:
-                dropbox_table = Table(title="Detected Dropbox API Keys", box=DOUBLE, show_lines=True)
-                dropbox_table.add_column("File", style="cyan")
-                dropbox_table.add_column("API Key", style="green")
-
-                for api_key, file in dropbox_api_key_list:
-                    dropbox_table.add_row(file, api_key if api_key else "N/A")
-                    validate_dropbox_api_key(api_key)
-
-                console.print(dropbox_table)
-            
-
-                    
-
-            # Extract AWS credentials with full file paths
             aws_access_key_list = extract_multiple_values(findings, aws_access_keys, repo_path)
             aws_secret_key_list = extract_multiple_values(findings, aws_secret_keys, repo_path)
-            
-            aws_detected = set(zip(aws_access_key_list, aws_secret_key_list))
-
-            # Extract Azure credentials with full file paths
             azure_client_id_list = extract_multiple_values(findings, azure_client_ids, repo_path)
             azure_tenant_id_list = extract_multiple_values(findings, azure_tenant_ids, repo_path)
             azure_client_secret_list = extract_multiple_values(findings, azure_client_secrets, repo_path)
+
+            # Group AWS and Azure credentials.
+            aws_detected = set(zip(aws_access_key_list, aws_secret_key_list))
             azure_detected = set(zip(azure_client_id_list, azure_tenant_id_list, azure_client_secret_list))
 
-            # Validate and print AWS credentials
+            credentials_found = False
+
+            # Display known secrets per service.
+            if slack_token_list:
+                credentials_found = True
+                slack_table = Table(title="Detected Slack Tokens", box=DOUBLE, show_lines=True)
+                slack_table.add_column("File", style="cyan")
+                slack_table.add_column("Token", style="green")
+                for token, filepath in slack_token_list:
+                    slack_table.add_row(filepath, token if token else "N/A")
+                    validate_slack_token(token)
+                console.print(slack_table)
+
+            if heroku_api_key_list:
+                credentials_found = True
+                heroku_table = Table(title="Detected Heroku API Keys", box=DOUBLE, show_lines=True)
+                heroku_table.add_column("File", style="cyan")
+                heroku_table.add_column("API Key", style="green")
+                for api_key, filepath in heroku_api_key_list:
+                    heroku_table.add_row(filepath, api_key if api_key else "N/A")
+                    validate_heroku_api_key(api_key)
+                console.print(heroku_table)
+
+            if stripe_api_key_list:
+                credentials_found = True
+                stripe_table = Table(title="Detected Stripe API Keys", box=DOUBLE, show_lines=True)
+                stripe_table.add_column("File", style="cyan")
+                stripe_table.add_column("API Key", style="green")
+                for api_key, filepath in stripe_api_key_list:
+                    stripe_table.add_row(filepath, api_key if api_key else "N/A")
+                    validate_stripe_api_key(api_key)
+                console.print(stripe_table)
+
+            if github_tokens_list:
+                credentials_found = True
+                github_table = Table(title="Detected GitHub Personal Access Tokens", box=DOUBLE, show_lines=True)
+                github_table.add_column("File", style="cyan")
+                github_table.add_column("Token", style="green")
+                for token, filepath in github_tokens_list:
+                    github_table.add_row(filepath, token if token else "N/A")
+                    validate_github_personal_access_token(token)
+                console.print(github_table)
+
+            if twilio_api_key_list:
+                credentials_found = True
+                twilio_table = Table(title="Detected Twilio API Keys", box=DOUBLE, show_lines=True)
+                twilio_table.add_column("File", style="cyan")
+                twilio_table.add_column("API Key", style="green")
+                for api_key, filepath in twilio_api_key_list:
+                    twilio_table.add_row(filepath, api_key if api_key else "N/A")
+                    # Replace "your_auth_token" with an actual token or retrieve it dynamically.
+                    validate_twilio_api_key(api_key, "your_auth_token")
+                console.print(twilio_table)
+
+            if dropbox_api_key_list:
+                credentials_found = True
+                dropbox_table = Table(title="Detected Dropbox API Keys", box=DOUBLE, show_lines=True)
+                dropbox_table.add_column("File", style="cyan")
+                dropbox_table.add_column("API Key", style="green")
+                for api_key, filepath in dropbox_api_key_list:
+                    dropbox_table.add_row(filepath, api_key if api_key else "N/A")
+                    validate_dropbox_api_key(api_key)
+                console.print(dropbox_table)
+
             if aws_detected:
+                credentials_found = True
                 aws_table = Table(title="Detected AWS Credentials", box=DOUBLE, show_lines=True)
                 aws_table.add_column("File", style="cyan")
                 aws_table.add_column("Access Key", style="green")
                 aws_table.add_column("Secret Key", style="green")
-
-                for ((access_key, access_file), (secret_key, secret_file)) in aws_detected:
+                for ((access_key, access_filepath), (secret_key, secret_filepath)) in aws_detected:
                     if access_key and secret_key:
                         aws_table.add_row(
-                            access_file or secret_file,
+                            access_filepath or secret_filepath,
                             access_key,
-                            secret_key  # Truncate secret key for display
+                            secret_key
                         )
                         validate_aws_credentials(access_key, secret_key)
                 console.print(aws_table)
 
-            # Validate and print Azure credentials
             if azure_detected:
+                credentials_found = True
                 azure_table = Table(title="Detected Azure Credentials", box=DOUBLE, show_lines=True)
                 azure_table.add_column("File", style="cyan")
                 azure_table.add_column("Client ID", style="green")
                 azure_table.add_column("Tenant ID", style="green")
                 azure_table.add_column("Client Secret", style="green")
-
-                for ((client_id, client_file), (tenant_id, tenant_file), (client_secret, secret_file)) in azure_detected:
+                for ((client_id, client_filepath), (tenant_id, tenant_filepath), (client_secret, secret_filepath)) in azure_detected:
                     if client_id and tenant_id and client_secret:
                         azure_table.add_row(
-                            client_file or tenant_file or secret_file,
+                            client_filepath or tenant_filepath or secret_filepath,
                             client_id,
                             tenant_id,
-                            client_secret # Truncate client secret for display
+                            client_secret
                         )
                         validate_azure_credentials(tenant_id, client_id, client_secret)
                 console.print(azure_table)
 
-            # Feedback if no credentials were detected
-            if not aws_detected and not azure_detected:
-                console.print(Panel(f"[green]Some items, maybe some [yellow]Passwords[/yellow] were detected! by gitleaks in [yellow]{repo_path}[/yellow], check it manually[/green]", title="Generic Secrets ", box=DOUBLE))
+            # Collect all known secret values from the extractions.
+            known_secrets = set()
+            for secret_list in [
+                slack_token_list, heroku_api_key_list, stripe_api_key_list,
+                github_tokens_list, twilio_api_key_list, dropbox_api_key_list
+            ]:
+                for secret, _ in secret_list:
+                    if secret:
+                        known_secrets.add(secret)
+            for secret, _ in aws_access_key_list:
+                if secret:
+                    known_secrets.add(secret)
+            for secret, _ in aws_secret_key_list:
+                if secret:
+                    known_secrets.add(secret)
+            for secret, _ in azure_client_id_list:
+                if secret:
+                    known_secrets.add(secret)
+            for secret, _ in azure_tenant_id_list:
+                if secret:
+                    known_secrets.add(secret)
+            for secret, _ in azure_client_secret_list:
+                if secret:
+                    known_secrets.add(secret)
 
-        else:
-            console.print(Panel("[red]Please ensure to user gitleaks rules.toml file[/red]", title="Generic Secrets ", box=DOUBLE))
+            # Filter out lines in the gitleaks output that contain any known secret.
+            unknown_lines = []
+            for line in findings.splitlines():
+                if not any(known_secret in line for known_secret in known_secrets):
+                    unknown_lines.append(line)
+
+            # Print general (unclassified) secrets if found.
+            if unknown_lines:
+                general_secret("\n".join(unknown_lines), repo_path)
+            # If no known credentials were identified at all, treat entire output as general secrets.
+            elif not credentials_found:
+                general_secret(findings, repo_path)
+            else:
+                console.print(Panel(
+                    "[red]Please ensure to use gitleaks rules.toml file[/red]",
+                    title="Generic Secrets",
+                    box=DOUBLE
+                ))
+                
     except FileNotFoundError:
-        console.print(f"[red]❌ Gitleaks is not installed or not in PATH. Please install Gitleaks and try again.[/red]")
+        console.print("[red]❌ Gitleaks is not installed or not in PATH. Please install Gitleaks and try again.[/red]")
     except Exception as e:
         console.print(f"[red]❌ Error running Gitleaks: {e}[/red]")
+
+import sys
+
+def general_secret(gitleak_findings, filepath):
+    """
+    Reads gitleaks output from standard input, parses each finding block,
+    and prints the secret along with its corresponding RuleID.
+    """
+    input_text = gitleak_findings
+    lines = input_text.splitlines()
+    findings = []
+    block = []
+
+    for line in lines:
+        if not line.strip():
+            if block:
+                secret = None
+                rule = None
+                link = None
+                for b in block:
+                    if b.startswith("Finding:"):
+                        secret = b.split("Finding:", 1)[1].strip()
+                    elif b.startswith("RuleID:"):
+                        rule = b.split("RuleID:", 1)[1].strip()
+                    elif b.startswith("Link:"):
+                        link = b.split("Link:", 1)[1].strip()
+                if secret and rule and link:
+                    # Append a tuple with a consistent structure: (link, secret, rule, filepath)
+                    findings.append((link, secret, rule, filepath))
+                block = []
+        else:
+            block.append(line)
+
+    # Process any remaining block not terminated by a blank line.
+    if block:
+        secret = None
+        rule = None
+        link = None
+        for b in block:
+            if b.startswith("Finding:"):
+                secret = b.split("Finding:", 1)[1].strip()
+            elif b.startswith("RuleID:"):
+                rule = b.split("RuleID:", 1)[1].strip()
+            elif b.startswith("Link:"):
+                link = b.split("Link:", 1)[1].strip()
+        if secret and rule and link:
+            findings.append((link, secret, rule, filepath))
+            
+    # Assuming Table, DOUBLE, and console are imported from the rich library.
+    general_secret_table = Table(title="General Secret Detected by Gitleaks", box=DOUBLE, show_lines=True)
+    general_secret_table.add_column("Link", style="cyan")
+    general_secret_table.add_column("Secret", style="green")
+    general_secret_table.add_column("Type", style="green")
+    general_secret_table.add_column("File", style="green")
+    
+    if not findings:
+        print("No valid findings found.")
+    else:
+        # Unpack tuple (link, secret, rule, filepath) for each finding.
+        for link, secret, rule, file in findings:
+            general_secret_table.add_row(link, secret, rule, file)
+        console.print(general_secret_table)
+
+
 def delete_repository(repo_path):
     """
     Delete the specified repository folder.
