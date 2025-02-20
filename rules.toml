@@ -197,7 +197,7 @@ tags = ["JWT", "token"]
 [[rules]]
 id = "generic-password"
 description = "Detect passwords stored in code, including hashed and encoded passwords"
-regex = '''(?i)\b(password|pass|pwd|passwd|secret|login_password)[\s]*[:=][\s]*["']?([A-Fa-f0-9]{32,64}|[A-Za-z0-9+/=]{20,})["']?\b'''
+regex = '''(?i)\b(password|pass|pwd|passwd|secret|login_password)[\s]*[:=][\s]*["']?([A-Fa-f0-9]{4,8}|[A-Za-z0-9+@-_,/=]{8,})["']?\b'''
 tags = ["password", "generic", "hash", "base64"]
 allowlist = { regexes = [
   '''password\s*[:=]\s*["']?null["']?''',
