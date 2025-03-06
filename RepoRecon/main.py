@@ -1,3 +1,4 @@
+
 import re
 import subprocess
 import os
@@ -7,10 +8,8 @@ import requests
 from rich.console import Console
 from rich.table import Table
 import pyfiglet
-import os
 import subprocess
-from rich.console import Console
-from rich.console import Console
+import csv
 from rich.table import Table
 from rich.panel import Panel
 from rich.box import DOUBLE
@@ -22,6 +21,26 @@ from azure.mgmt.resource import SubscriptionClient
 from azure.core.exceptions import AzureError
 import shutil
 import sys
+import boto3
+import botocore.exceptions
+from rich.console import Console
+from rich.panel import Panel
+console = Console()
+import boto3
+import botocore.exceptions
+from rich.console import Console
+from rich.table import Table
+from rich.box import DOUBLE
+from rich.panel import Panel
+console = Console()
+import boto3
+import botocore.exceptions
+from rich.console import Console
+from rich.table import Table
+from rich.box import DOUBLE
+from rich.panel import Panel
+console = Console()
+
 
 # Initialize console for colorful output
 console = Console()
@@ -119,108 +138,16 @@ def download_repository(repo_url, destination_dir, token=None):
         return None
 
 
-def extract_value(findings, key, repo_path):
-    """
-    Extract the value of a specific key and its associated full file path from the Gitleaks findings using regex.
-    """
-    try:
-        results = []
-        current_file = None
-        for line in findings.splitlines():
-            # Detect file location
-            file_match = re.search(r"File:\s*([\w./\\-]+)", line)
-            if file_match:
-                relative_file_path = file_match.group(1).strip()
-                current_file = os.path.join(repo_path, relative_file_path)  # Combine repo path with relative file path
-
-            # Match formats like "key: value" or "key = value"
-            pattern = rf"{re.escape(key)}[^\S\r\n]*[:=][^\S\r\n]*(\S+)"
-            match = re.search(pattern, line)
-            if match and current_file:
-                results.append((match.group(1).strip(), current_file))
-        return results
-    except Exception as e:
-        console.print(f"[red]Error extracting value for key '{key}': {e}[/red]")
-    return []
-
-
-
-def validate_aws_credentials(access_key, secret_key):
-    """
-    Validate AWS credentials using boto3 with robust error handling.
-    """
-    try:
-        if not access_key or not secret_key:
-            console.print("[yellow]AWS credentials are incomplete. Validation skipped.[/yellow]")
-            return False
-
-        console.print("+ [green]AWS credentials Detected [/green]")
-        console.print("+ [blue]Validating AWS credentials...[/blue]")
-
-        # Create a session with provided credentials
-        session = boto3.session.Session(
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-        )
-        sts_client = session.client("sts")
-
-        # Make a call to STS to get the caller identity
-        sts_client.get_caller_identity()
-        console.print("[green]+ AWS credentials are valid![/green]")
-        return True
-
-    except NoCredentialsError:
-        console.print(
-            "[red]- AWS credentials validation failed![/red]\n"
-            "[red]- Reason: No credentials were provided or they are invalid.[/red]\n"
-            "[blue]- Suggestion: Ensure both the access key and secret key are provided.[/blue]"
-        )
-        return False
-    except PartialCredentialsError:
-        console.print(
-            "[red]- AWS credentials validation failed![/red]\n"
-            "[red]- Reason: Partial credentials provided (missing access key or secret key).[/red]\n"
-            "[blue]- Suggestion: Provide both access key and secret key for validation.[/blue]"
-        )
-        return False
-    except ClientError as e:
-        error_code = e.response.get("Error", {}).get("Code", "")
-        if error_code == "InvalidClientTokenId":
-            console.print(
-                "[red]- AWS credentials validation failed![/red]\n"
-                "[red]- Reason: The security token included in the request is invalid.[/red]\n"
-                "[blue]- Suggestion: Verify the access key and secret key, and ensure they are active.[/blue]"
-            )
-        elif error_code == "AccessDenied":
-            console.print(
-                "[red]- AWS credentials validation failed![/red]\n"
-                "[red]- Reason: Access denied. The credentials may lack sufficient permissions.[/red]\n"
-                "[blue]- Suggestion: Check the IAM policy attached to the credentials.[/blue]"
-            )
-        else:
-            console.print(
-                "[red]- AWS credentials validation failed![/red]\n"
-                f"[red]- Reason: {e}[/red]"
-            )
-        return False
-    except Exception as e:
-        console.print(
-            "[red]- AWS credentials validation failed![/red]\n"
-            f"[red]- Reason: {str(e)}[/red]"
-        )
-        return False
-
-
 def validate_azure_credentials(client_id, tenant_id, client_secret):
     """
     Validate Azure credentials using the Azure SDK for Python.
     """
     try:
         if not client_id or not tenant_id or not client_secret:
-            console.print("[yellow]Azure credentials are incomplete. Validation skipped.[/yellow]")
+            console.print("[bold red]-[/bold red] ❌ Azure credentials are incomplete. Validation skipped.")
             return False
-
-        console.print("[green] + Azure credentials Detected[/green]")
+        console.print("[bold green]+[/bold green] 🔑 Azure credentials Detected")
+        console.print("[bold green]+[/bold green] 🔍 Validating Azure credentials...")
 
         # Authenticate using the provided credentials
         credential = ClientSecretCredential(tenant_id=tenant_id, client_id=client_id, client_secret=client_secret)
@@ -230,91 +157,76 @@ def validate_azure_credentials(client_id, tenant_id, client_secret):
         subscriptions = list(subscription_client.subscriptions.list())
 
         if subscriptions:
-            console.print("[green]+ Azure credentials are valid![/green]")
+            console.print("[bold green]+[/bold green] ✅ Azure credentials validation succeeded!")
             return True
         else:
-            console.print("[red]- Azure credentials validation failed! No subscriptions found.[/red]")
+            console.print("[bold red]-[/bold red] ❌ Azure credentials are incomplete. Validation skipped.")
             return False
 
     except AzureError as e:
         # Handle specific Azure SDK errors
         error_message = str(e)
         if "invalid_client" in error_message:
-            console.print(
-                "[red]- Azure credentials validation failed![/red]\n"
-                "[red]- Reason: Invalid client ID or secret.[/red]\n"
-                "[blue]- Suggestion: Verify the client ID and secret.[/blue]"
-            )
+           console.print("[bold red]-[/bold red] ❌ Azure credentials are incomplete. Validation skipped.")
         elif "invalid_tenant" in error_message:
-            console.print(
-                "[red]- Azure credentials validation failed![/red]\n"
-                "[red]- Reason: Invalid tenant ID.[/red]\n"
-                "[blue]- Suggestion: Verify the tenant ID or contact your Azure administrator.[/blue]"
-            )
+           console.print("[bold red]-[/bold red] ❌ Azure credentials are incomplete. Validation skipped.")
         else:
-            console.print(f"[red]- Azure credentials validation failed![/red]\n[red]Reason: {error_message}[/red]")
+            console.print("[bold red]-[/bold red] ❌ Azure credentials are incomplete. Validation skipped.")
         return False
 
     except Exception as e:
-        console.print(f"[red]- Azure credentials validation failed![/red]\n[red]Reason: {str(e)}[/red]")
+        console.print("[bold red]-[/bold red] ❌ Azure credentials are incomplete. Validation skipped.")
         return False
-
 
 def validate_slack_token(token):
     """
     Validate Slack API token by attempting to make a basic request to Slack's API.
     """
     try:
-        import requests
         if not token:
-            console.print("[yellow]Slack API token is incomplete. Validation skipped.[/yellow]")
+            console.print("[bold red]-[/bold red] ❌ Slack API token is incomplete. Validation skipped.")
             return False
-
-        console.print("+ [green]Slack API token Detected![/green]")
-        console.print("+ [blue]Validating Slack API token...[/blue]")
+        console.print("[bold green]+[/bold green] 🔑 Slack credentials Detected")
+        console.print("[bold green]+[/bold green] 🔍 Validating Slack API token...")
         headers = {"Authorization": f"Bearer {token}"}
         response = requests.get("https://slack.com/api/auth.test", headers=headers)
 
         if response.status_code == 200 and response.json().get("ok"):
-            console.print("[green]+ Slack API token is valid![/green]")
+            console.print("[bold green]+[/bold green] ✅ Slack API token Detected!")
             return True
         else:
-            console.print(
-                "[red]- Slack API token validation failed![/red]\n"
-                f"[red]- Reason: {response.json().get('error', 'Unknown error')}[/red]"
-            )
+            console.print("[bold red]-[/bold red] ❌ Slack API token is incomplete. Validation skipped.")
             return False
     except Exception as e:
-        console.print(f"[red]- Slack API token validation failed! - Reason: {str(e)}[/red]")
+        console.print("[bold red]-[/bold red] ❌ Slack API token is incomplete. Validation skipped.")
         return False
 def validate_heroku_api_key(api_key):
     """
     Validate Heroku API key by attempting to list apps using the Heroku API.
     """
     try:
-        import requests
+        
         if not api_key:
-            console.print("[yellow]Heroku API key is incomplete. Validation skipped.[/yellow]")
+            console.print("[bold red]-[/bold red] ❌ Heroku API key is incomplete. Validation skipped.")
             return False
 
-        console.print("[green]+ Heroku API key Detected [/green]")
-        console.print("+ [blue]Validating Heroku API token...[/blue]")
+        console.print("[bold green]+[/bold green] 🔑 Heroku API key Detected")
+        console.print("[bold green]+[/bold green] 🔍 Validating Slack API token...")
+    
         headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/vnd.heroku+json; version=3"}
         response = requests.get("https://api.heroku.com/apps", headers=headers)
 
         if response.status_code == 200:
-            console.print("[green]+ Heroku API key is valid![/green]")
+            console.print("[bold green]+[/bold green] ✅ Heroku API key is valid!")
             return True
         else:
-            console.print(
-                "[red]- Heroku API key validation failed![/red]\n"
-                f"[red]- Reason: {response.json().get('message', 'Unknown error')}[/red]"
-            )
+            console.print("[bold red]-[/bold red] ❌ Heroku API key is incomplete. Validation skipped.")
             return False
     except Exception as e:
-        console.print(f"[red]- Heroku API key validation failed![/red]\n[red]Reason: {str(e)}[/red]")
+        console.print("[bold red]-[/bold red] ❌ Heroku API key is incomplete. Validation skipped.")
         return False
 def validate_stripe_api_key(api_key):
+    
     """
     Validate Stripe API key by attempting to retrieve account details using Stripe's API.
     """
@@ -435,18 +347,132 @@ def validate_github_personal_access_token(token):
         return False
 
 
+console = Console()
+
+def extract_value(findings, key, repo_path):
+    
+    """
+    Extracts the value of a specific key and its associated full file path from the Gitleaks findings using regex.
+    """
+    try:
+        results = []
+        current_file = None
+        findings_lines = findings.splitlines()
+
+        for line in findings_lines:
+            # Detect file location in the findings
+            file_match = re.search(r"File:\s*([\w./\\-]+)", line)
+            if file_match:
+                relative_file_path = file_match.group(1).strip()
+                current_file = os.path.join(repo_path, relative_file_path)  # Combine repo path with relative file path
+
+            # Match formats like "key: value" or "key = value"
+            pattern = rf"{re.escape(key)}\s*[:=]\s*(.+)"
+            match = re.search(pattern, line)
+            
+            if match and current_file:
+                value = match.group(1).strip()
+                results.append((current_file, value))  # Correct tuple order: (file_path, secret)
+        
+        return results
+
+    except Exception as e:
+        console.print(f"[red]Error extracting value for key '{key}': {e}[/red]")
+        return []
+
+def validate_aws_credentials(access_key, secret_key):
+    """
+    Validates AWS credentials using STS get_caller_identity.
+    Returns True if the credentials are valid, otherwise False.
+    """
+    console.print(
+            Panel(
+                "[green]AWS Access and Secret keys Detected!.[/green]",
+                title="AWS Credential Validation",
+                style="green",
+            ))
+    console.print(
+            Panel(
+                "[green]Validating AWS keys[/green]",
+                title="AWS Credential Validation",
+                style="green",
+            ))
+    try:
+        client = boto3.client(
+            "sts",
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name="us-east-1"
+        )
+        response = client.get_caller_identity()
+        console.print(
+            Panel(
+                f"[green]✅ AWS Credentials are Valid![/green]\n"
+                f"[cyan]Identity:[/cyan] {response}",
+                title="AWS Credential Validation",
+                style="green",
+            )
+        )
+        return True
+    except botocore.parsers.ResponseParserError:
+        console.print(
+            Panel(
+                "[red]❌ Invalid credentials or AWS returned an unexpected empty response.[/red]",
+                title="AWS Credential Validation",
+                style="red",
+            )
+        )
+        return False
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "Unknown")
+        console.print(
+            Panel(
+                f"[red]❌ Credentials validation failed. Error code: {error_code}[/red]",
+                title="AWS Credential Validation",
+                style="red",
+            )
+        )
+        return False
+    except Exception as e:
+        console.print(
+            Panel(
+                f"[red]❌ Unexpected error: {str(e)}[/red]",
+                title="AWS Credential Validation",
+                style="red",
+            )
+        )
+        return False
+
+
+
 def extract_multiple_values(findings, keys, repo_path):
     """
-    Extract the values and their full file paths for any matching keys from the Gitleaks findings.
+    Extract values (secrets, file paths, rule IDs) from Gitleaks findings.
+    Also extracts GitHub links if available.
     """
     results = []
+    
     for key in keys:
-        key_results = extract_value(findings, key, repo_path)
+        key_results = extract_value(findings, key, repo_path)  # Extract values for each key
         if key_results:
             results.extend(key_results)
-    return results
 
+    # Extract the GitHub link from findings (searching for "Link:")
+    link = "N/A"  # Default value if no link is found
+    findings_lines = findings.splitlines()
 
+    for line in findings_lines:
+        if line.startswith("Link:"):
+            link = line.split("Link:", 1)[1].strip()
+            break  # Stop after finding the first link
+
+    # Append GitHub link to each result
+    final_results = []
+    for item in results:
+        file_path, secret = item  # Extracted file path and secret
+        final_results.append((link, file_path, secret))  # Include the GitHub link
+
+    return final_results
 
 
 def extract_all_values(text, keywords):
@@ -463,6 +489,72 @@ def extract_all_values(text, keywords):
                     values.add(match.group(1).strip())
     return list(values)
 
+# Regex to match ANSI escape sequences
+ANSI_ESCAPE = re.compile(r'\x1b\[[0-9;]*m')
+
+def remove_ansi_escape_sequences(text):
+    return ANSI_ESCAPE.sub('', text)
+
+def parse_gitleaks_text_output(output):
+    """
+    Parse the plain text gitleaks output and extract exactly four fields:
+       (RuleID, Link, File, Secret)
+    Records are assumed to be separated by a blank line.
+    """
+    secrets = []
+    records = output.split("\n\n")
+    for record in records:
+        if not record.strip():
+            continue
+
+        rule = "N/A"
+        link = "N/A"
+        file_field = "N/A"
+        secret = "N/A"
+
+        for line in record.splitlines():
+            line = line.strip()
+            if line.startswith("RuleID:"):
+                parts = line.split(":", 1)
+                rule = parts[1].strip() if len(parts) > 1 else "N/A"
+            elif line.startswith("Link:"):
+                parts = line.split(":", 1)
+                link = parts[1].strip() if len(parts) > 1 else "N/A"
+            elif line.startswith("File:"):
+                parts = line.split(":", 1)
+                file_field = parts[1].strip() if len(parts) > 1 else "N/A"
+            elif line.startswith("Finding"):
+                parts = line.split(":", 1)
+                secret = parts[1].strip() if len(parts) > 1 else "N/A"
+
+        # Remove any ANSI escape codes from the extracted fields.
+        rule = remove_ansi_escape_sequences(rule)
+        link = remove_ansi_escape_sequences(link)
+        file_field = remove_ansi_escape_sequences(file_field)
+        secret = remove_ansi_escape_sequences(secret)
+
+        secrets.append((rule, link, file_field, secret))
+    return secrets
+
+def export_secrets_to_csv(secrets, filename='detected_secrets.csv'):
+    """
+    Append parsed secret records to a CSV file.
+    If a record has more than 4 items, only the first four will be used.
+    """
+    file_exists = os.path.exists(filename)
+    with open(filename, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow(['RuleID', 'Link', 'File', 'Secret'])
+        for record in secrets:
+            # If the record is not a tuple or list, skip it.
+            if not isinstance(record, (tuple, list)):
+                continue
+            # Only take the first four elements (pad if needed).
+            row = list(record[:4])
+            while len(row) < 4:
+                row.append("N/A")
+            writer.writerow(row)
 console = Console()
 def run_gitleaks(repo_path, rule_file):
     """
@@ -478,13 +570,24 @@ def run_gitleaks(repo_path, rule_file):
             encoding='utf-8',
             errors='replace'
         )
+        
 
         if result.returncode == 0:
             # No sensitive data found; remove the repository.
             delete_repository(repo_path)
 
+            
         elif result.returncode == 1:
             findings = result.stdout.strip()
+            
+            secrets = parse_gitleaks_text_output(findings)
+            
+            if secrets:
+            #   for secret in secrets:
+                    #print(secret)
+                export_secrets_to_csv(secrets)
+            else:
+                print("No secrets were parsed from the gitleaks output.")
 
             # Define keyword lists for various services.
             aws_access_keys = [
@@ -532,7 +635,6 @@ def run_gitleaks(repo_path, rule_file):
             github_tokens_list = extract_multiple_values(findings, github_personal_access_tokens, repo_path)
             twilio_api_key_list = extract_multiple_values(findings, twilio_api_keys, repo_path)
             dropbox_api_key_list = extract_multiple_values(findings, dropbox_api_keys, repo_path)
-
             aws_access_key_list = extract_multiple_values(findings, aws_access_keys, repo_path)
             aws_secret_key_list = extract_multiple_values(findings, aws_secret_keys, repo_path)
             azure_client_id_list = extract_multiple_values(findings, azure_client_ids, repo_path)
@@ -548,51 +650,61 @@ def run_gitleaks(repo_path, rule_file):
             # Display known secrets per service.
             if slack_token_list:
                 credentials_found = True
-                slack_table = Table(title="Detected Slack Tokens", box=DOUBLE, show_lines=True)
+                slack_table = Table(title="Detected Slack Token Keys", box=DOUBLE, show_lines=True)
+                slack_table.add_column("Link", style="cyan", no_wrap=False, overflow="fold")
                 slack_table.add_column("File", style="cyan")
-                slack_table.add_column("Token", style="green")
-                for token, filepath in slack_token_list:
-                    slack_table.add_row(filepath, token if token else "N/A")
+                slack_table.add_column("API Key", style="green")
+                for link, file_path, token in slack_token_list:
+                    slack_table.add_row(link, file_path, token)
                     validate_slack_token(token)
                 console.print(slack_table)
+                
 
             if heroku_api_key_list:
                 credentials_found = True
                 heroku_table = Table(title="Detected Heroku API Keys", box=DOUBLE, show_lines=True)
+                heroku_table.add_column("Link", style="cyan", no_wrap=False, overflow="fold")
                 heroku_table.add_column("File", style="cyan")
                 heroku_table.add_column("API Key", style="green")
-                for api_key, filepath in heroku_api_key_list:
-                    heroku_table.add_row(filepath, api_key if api_key else "N/A")
+                #print(heroku_api_key_list)
+                for link, api_key, filepath in heroku_api_key_list:
+                    heroku_table.add_row(link, api_key, filepath if api_key else "N/A")
                     validate_heroku_api_key(api_key)
                 console.print(heroku_table)
+                
+            
 
             if stripe_api_key_list:
                 credentials_found = True
                 stripe_table = Table(title="Detected Stripe API Keys", box=DOUBLE, show_lines=True)
+                stripe_table.add_column("Link", style="cyan", no_wrap=False, overflow="fold")
                 stripe_table.add_column("File", style="cyan")
                 stripe_table.add_column("API Key", style="green")
-                for api_key, filepath in stripe_api_key_list:
-                    stripe_table.add_row(filepath, api_key if api_key else "N/A")
+                
+                for link, filepath, api_key in stripe_api_key_list:
+                    stripe_table.add_row(link, filepath, api_key if api_key else "N/A")
                     validate_stripe_api_key(api_key)
                 console.print(stripe_table)
-
+                
             if github_tokens_list:
                 credentials_found = True
                 github_table = Table(title="Detected GitHub Personal Access Tokens", box=DOUBLE, show_lines=True)
+                github_table.add_column("Link", style="cyan", no_wrap=False, overflow="fold")
                 github_table.add_column("File", style="cyan")
                 github_table.add_column("Token", style="green")
-                for token, filepath in github_tokens_list:
-                    github_table.add_row(filepath, token if token else "N/A")
+                for link, token, filepath in github_tokens_list:
+                    github_table.add_row(link, filepath, token if token else "N/A")
                     validate_github_personal_access_token(token)
                 console.print(github_table)
 
             if twilio_api_key_list:
                 credentials_found = True
                 twilio_table = Table(title="Detected Twilio API Keys", box=DOUBLE, show_lines=True)
+                twilio_table.add_column("Link", style="cyan", no_wrap=False, overflow="fold")
                 twilio_table.add_column("File", style="cyan")
                 twilio_table.add_column("API Key", style="green")
-                for api_key, filepath in twilio_api_key_list:
-                    twilio_table.add_row(filepath, api_key if api_key else "N/A")
+                for link, api_key, filepath in twilio_api_key_list:
+                    twilio_table.add_row(link,filepath, api_key if api_key else "N/A")
                     # Replace "your_auth_token" with an actual token or retrieve it dynamically.
                     validate_twilio_api_key(api_key, "your_auth_token")
                 console.print(twilio_table)
@@ -600,39 +712,46 @@ def run_gitleaks(repo_path, rule_file):
             if dropbox_api_key_list:
                 credentials_found = True
                 dropbox_table = Table(title="Detected Dropbox API Keys", box=DOUBLE, show_lines=True)
+                dropbox_table.add_column("Link", style="cyan", no_wrap=False, overflow="fold")
                 dropbox_table.add_column("File", style="cyan")
                 dropbox_table.add_column("API Key", style="green")
-                for api_key, filepath in dropbox_api_key_list:
-                    dropbox_table.add_row(filepath, api_key if api_key else "N/A")
+                for link, api_key, filepath in dropbox_api_key_list:
+                    dropbox_table.add_row(link ,filepath, api_key if api_key else "N/A")
                     validate_dropbox_api_key(api_key)
                 console.print(dropbox_table)
 
             if aws_detected:
                 credentials_found = True
                 aws_table = Table(title="Detected AWS Credentials", box=DOUBLE, show_lines=True)
+                aws_table.add_column("Link", style="cyan", no_wrap=False, overflow="fold")
                 aws_table.add_column("File", style="cyan")
                 aws_table.add_column("Access Key", style="green")
                 aws_table.add_column("Secret Key", style="green")
-                for ((access_key, access_filepath), (secret_key, secret_filepath)) in aws_detected:
+                #print(aws_detected)
+                for ((link, access_filepath, access_key), (link,secret_filepath, secret_key)) in aws_detected:
                     if access_key and secret_key:
                         aws_table.add_row(
+                            link,
                             access_filepath or secret_filepath,
                             access_key,
                             secret_key
                         )
                         validate_aws_credentials(access_key, secret_key)
                 console.print(aws_table)
+                #export_secrets_to_csv(aws_detected)
 
             if azure_detected:
                 credentials_found = True
                 azure_table = Table(title="Detected Azure Credentials", box=DOUBLE, show_lines=True)
+                azure_table.add_column("Link", style="cyan",no_wrap=False, overflow="fold")
                 azure_table.add_column("File", style="cyan")
                 azure_table.add_column("Client ID", style="green")
                 azure_table.add_column("Tenant ID", style="green")
                 azure_table.add_column("Client Secret", style="green")
-                for ((client_id, client_filepath), (tenant_id, tenant_filepath), (client_secret, secret_filepath)) in azure_detected:
+                for ((link, client_id, client_filepath), (link ,tenant_id, tenant_filepath), (link, client_secret, secret_filepath)) in azure_detected:
                     if client_id and tenant_id and client_secret:
                         azure_table.add_row(
+                            link,
                             client_filepath or tenant_filepath or secret_filepath,
                             client_id,
                             tenant_id,
@@ -643,26 +762,28 @@ def run_gitleaks(repo_path, rule_file):
 
             # Collect all known secret values from the extractions.
             known_secrets = set()
+            
             for secret_list in [
                 slack_token_list, heroku_api_key_list, stripe_api_key_list,
                 github_tokens_list, twilio_api_key_list, dropbox_api_key_list
             ]:
-                for secret, _ in secret_list:
+                for link,secret,filepath in secret_list:
                     if secret:
                         known_secrets.add(secret)
-            for secret, _ in aws_access_key_list:
+            #print(aws_access_key_list)
+            for x,secret, _ in aws_access_key_list:
                 if secret:
                     known_secrets.add(secret)
-            for secret, _ in aws_secret_key_list:
+            for link,secret, _ in aws_secret_key_list:
                 if secret:
                     known_secrets.add(secret)
-            for secret, _ in azure_client_id_list:
+            for link,secret, _ in azure_client_id_list:
                 if secret:
                     known_secrets.add(secret)
-            for secret, _ in azure_tenant_id_list:
+            for link, secret, _ in azure_tenant_id_list:
                 if secret:
                     known_secrets.add(secret)
-            for secret, _ in azure_client_secret_list:
+            for link,secret, _ in azure_client_secret_list:
                 if secret:
                     known_secrets.add(secret)
 
@@ -684,19 +805,19 @@ def run_gitleaks(repo_path, rule_file):
                     title="Generic Secrets",
                     box=DOUBLE
                 ))
+            
                 
     except FileNotFoundError:
         console.print("[red]❌ Gitleaks is not installed or not in PATH. Please install Gitleaks and try again.[/red]")
     except Exception as e:
         console.print(f"[red]❌ Error running Gitleaks: {e}[/red]")
 
-import sys
-
 def general_secret(gitleak_findings, filepath):
     """
     Reads gitleaks output from standard input, parses each finding block,
     and prints the secret along with its corresponding RuleID.
     """
+    
     input_text = gitleak_findings
     lines = input_text.splitlines()
     findings = []
@@ -739,7 +860,7 @@ def general_secret(gitleak_findings, filepath):
             
     # Assuming Table, DOUBLE, and console are imported from the rich library.
     general_secret_table = Table(title="General Secret Detected by Gitleaks", box=DOUBLE, show_lines=True)
-    general_secret_table.add_column("Link", style="cyan")
+    general_secret_table.add_column("Link", style="cyan", no_wrap=False, overflow="fold")
     general_secret_table.add_column("Secret", style="green")
     general_secret_table.add_column("Type", style="green")
     general_secret_table.add_column("File", style="green")
@@ -779,6 +900,7 @@ def main():
     parser.add_argument("--gitleaks", action="store_true", help="Run Gitleaks on downloaded repositories")
     parser.add_argument("--destination", default="./downloaded_repos", help="Directory to save downloaded repositories")
     parser.add_argument("--rule-file", required=True, help="Path to the Gitleaks rule file")
+    parser.add_argument('--csv', action='store_true', help='Save detected secrets to a CSV file')
     args = parser.parse_args()
     
     results = search_github(args.keyword, args.token)
