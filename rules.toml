@@ -14,12 +14,6 @@ regex = '''(?i)\b(?:aws[\s_-]*secret[\s_-]*(?:access[\s_-]*)?key|awsSecretAccess
 tags = ["AWS", "key"]
 entropy = 4.5
 
-[[rules]]
-id = "aws-credentials-combined"
-description = "AWS Credentials Combined"
-regex = '''(?i)(?:"?(?:aws_access_key_id|awsAccessKeyId)"?\s*[:=]\s*"?AKIA[0-9A-Z]{16}"?\s*[,\n]\s*(?:"?(?:aws_secret_access_key|awsSecretAccessKey)"?\s*[:=]\s*"?[A-Za-z0-9/+=]{40}"?))'''
-tags = ["AWS", "key"]
-
 # -------------------------------
 # Azure Keys
 # -------------------------------
@@ -42,30 +36,12 @@ regex = '''(?i)\b(?:azure[\s_-]*client[\s_-]*secret|azureClientSecret)\s*[:=]\s*
 tags = ["Azure", "key"]
 entropy = 4.5
 
-[[rules]]
-id = "azure-credentials-combined"
-description = "Azure Credentials Combined"
-regex = '''(?i)(?:"?(?:client_id|azureClientId)"?\s*[:=]\s*"?[0-9a-fA-F-]{36}"?\s*[,\n]\s*(?:"?(?:client_secret|azureClientSecret)"?\s*[:=]\s*"?[A-Za-z0-9+/=]{20,}"?\s*[,\n]\s*(?:"?(?:tenant_id|azureTenantId)"?\s*[:=]\s*"?[0-9a-fA-F-]{36}"?)))'''
-tags = ["Azure", "key"]
-
 # -------------------------------
-# JSON & YAML Style Keys
+# Flexible Patterns (replaces JSON, YAML, combined)
 # -------------------------------
-[[rules]]
-id = "json-style-keys"
-description = "JSON-style AWS and Azure Keys"
-regex = '''(?i)("([a-zA-Z_]*?(access_key|client_id|tenant_id|secret_key|client_secret)"\s*:\s*"([A-Za-z0-9/+=-]{16,40})"))'''
-tags = ["JSON", "AWS", "Azure", "key"]
-
-[[rules]]
-id = "yaml-style-keys"
-description = "YAML-style AWS and Azure Keys"
-regex = '''(?i)([a-zA-Z_]*?(access_key|client_id|tenant_id|secret_key|client_secret):\s*[']?([A-Za-z0-9/+=-]{16,40})[']?)'''
-tags = ["YAML", "AWS", "Azure", "key"]
-
 [[rules]]
 id = "flexible-patterns"
-description = "Flexible Key Patterns"
+description = "Flexible AWS/Azure Key Patterns"
 regex = '''(?i)(aws_[a-z_]*key[\s:=-]*["']?[A-Za-z0-9/+=-]{16,40}["']?|azure_[a-z_]*id[\s:=-]*["']?[0-9a-fA-F-]{36}["']?|azure_[a-z_]*secret[\s:=-]*["']?[A-Za-z0-9+/=]{20,}["']?)'''
 tags = ["Flexible", "AWS", "Azure", "key"]
 
@@ -123,7 +99,6 @@ tags = ["telegram", "key"]
 [[rules]]
 id = "facebook-access-token"
 description = "Facebook Access Token"
-# Require token to start with EAAC and have at least 36 characters total (EAAC + at least 32 alphanumerics)
 regex = '''(?i)\bEAAC[a-zA-Z0-9]{32,}\b'''
 tags = ["Facebook", "token"]
 entropy = 4.0
@@ -137,9 +112,6 @@ tags = ["GitLab", "token"]
 [[rules]]
 id = "generic-api-token"
 description = "Generic API Token Pattern"
-# Requires a delimiter (whitespace, colon, or equals) after the key name,
-# then an optional quote, at least 20 alphanumeric characters, optional closing quote,
-# ending at a word boundary.
 regex = '''(?i)\b(?:api[_-]?token|token)[\s:=]+["']?([A-Za-z0-9]{20,})["']?\b'''
 tags = ["generic", "token"]
 
@@ -196,30 +168,100 @@ tags = ["JWT", "token"]
 
 [[rules]]
 id = "generic-password"
-description = "Detect passwords stored in code, including hashed and encoded passwords"
-regex = '''(?i)\b(password|pass|pwd|passwd|secret|login_password)[\s]*[:=][\s]*["']?([A-Fa-f0-9]{4,8}|[A-Za-z0-9+@-_,/=]{8,})["']?\b'''
+description = "Detect typical passwords, including symbols. Large allowlist for code placeholders."
+modifiers = ["i"]  # All case-insensitive
 tags = ["password", "generic", "hash", "base64"]
-allowlist = { regexes = [
-  '''password\s*[:=]\s*["']?null["']?''',
-  '''password\s*=\s*["']?N/A["']?''',
-  '''password\s*=\s*["']?none["']?''',
-  '''password\s*=\s*["']?unknown["']?''',
-  '''password\s*=\s*["']?undefined["']?''',
-  '''password\s*=\s*["']?changeme["']?''',
-  '''password\s*=\s*["']?default["']?''',
-  '''password\s*=\s*["']?example["']?''',
-  '''password\s*=\s*["']?test["']?'''
-] }
 
-# -------------------------------
-# Dropbox API Key (Refined)
-# -------------------------------
+# We cannot use lookahead or lookbehind in RE2.
+# So we wrap it with a start whitespace/beginning and end with whitespace/EOL group:
+regex = '''(^|\s)(password|pass|pwd|passwd|secret|login_password)\s*[:=]\s*["']?([^\s"']{8,}|[A-Fa-f0-9]{4,8})["']?(\s|$)'''
+
+allowlist = {
+  regexes = [
+    # Code references / placeholders
+    "(?i)\\bclass\\s+.*(password|pass|pwd|passwd|secret|login_password)",
+    "(?i)\\bdef\\s+.*(password|pass|pwd|passwd|secret|login_password)",
+    "(?i)\\bfunction\\s+.*(password|pass|pwd|passwd|secret|login_password)",
+    "(?i)argparse.*add_argument\\(.*password",
+    "(?i)click\\.option\\(.*password",
+    "(?i)(verify|check|hash|compare|encrypt)_(password|pass|pwd|passwd|secret)",
+    "(?i)(password|pass|pwd|passwd|secret)_?(hash|hashed|verify|check|compare|encrypt|encryption)",
+    "(?i)password_reset",
+    "(?i)password_reset_token",
+    "(?i)password_prompt",
+    "(?i)password_confirm",
+    "(?i)password_valid",
+    "(?i)password_form",
+    "(?i)password_strong",
+    "(?i)password_check",
+    "(?i)password_length",
+    "(?i)password_verify",
+    "(?i)password_hash",
+    "(?i)prompt for password",
+    "(?i)enter your password",
+    "(?i)chang(e|ing) password",
+    "(?i)password\\s*:\\s*Optional",
+    "(?i)JSON\\.stringify\\(\\{\\s*(password|confirmPassword)",
+    "(?i)@param\\s+(password|pass|pwd|passwd|secret)",
+    "(?i)@return\\s+password",
+    "(?i)@throws\\s+password",
+    "(?i)@exception\\s+password",
+
+    # Dummy placeholder values
+    "(?i)password\\s*[:=]\\s*[\"']?null[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?N/A[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?none[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?unknown[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?undefined[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?changeme[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?default[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?example[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?test[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?placeholder[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?dummy[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?foo[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?bar[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?enter[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?choose[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?env[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?variable[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?mypassword[\"']?",
+    "(?i)password\\s*[:=]\\s*[\"']?yourpassword[\"']?",
+
+    # Common false positives
+    "(?i)self\\.password",
+    "(?i)user\\s*=\\s*user,\\s*password\\s*=\\s*password",
+    "(?i)/etc/passwd",
+    "(?i)/etc/shadow",
+    "(?i)\\*\\*Default password:\\s*password\\s*\\(",
+    "(?i)docker exec.*-e.*PASSWORD=",
+    "(?i)public function.*password",
+    "(?i)private function.*password",
+    "(?i)sshpass",
+    "(?i)bcrypt password",
+    "(?i)argon2 password",
+    "(?i)RSA password",
+    "(?i)keystore password",
+    "(?i)update your password",
+    "(?i)machinectl set-password",
+    "(?i)NVMe set password",
+    "(?i)terraform.*variable.*password",
+    "(?i)kubernetes.*secret.*password"
+  ]
+}
+
 [[rules]]
 id = "dropbox-api-key"
 description = "Dropbox API Key"
 regex = '''(?i)\bsl\.[A-Za-z0-9_-]{15,}\b'''
 tags = ["dropbox", "key"]
-allowlist = { regexes = ["(?i)^sl\\.isconcatspreadable$", "(?i)^sl\\.splice$", "(?i)^sl\\.iterator$"] }
+allowlist = { 
+  regexes = [
+    "(?i)^sl\\.isconcatspreadable$",
+    "(?i)^sl\\.splice$",
+    "(?i)^sl\\.iterator$"
+  ] 
+}
 
 # -------------------------------
 # Global Allowlists
