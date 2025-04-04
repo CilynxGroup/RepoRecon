@@ -1,284 +1,290 @@
+[[rules]]
+id = "azure-client-id"
+description = "Azure Client ID"
+# Explanation:
+#  - (?i) for case-insensitive
+#  - We allow these patterns:
+#      'azure client id', 'azureClientId', or 'AZURE_CLIENT_ID'
+#  - Optional spaces around `:` or `=`
+#  - A capturing group [0-9A-Fa-f-]{36} for standard 36-char GUID
+regex = "(?i)(?:azure[\\s_-]*client[\\s_-]*id|azureClientId|AZURE_CLIENT_ID)\\s*[:=]\\s*[\"']?([0-9A-Fa-f-]{32})[\"']?"
+tags = ["Azure", "key"]
+[[rules]]
+id = "azure-tenant-id"
+description = "Azure Tenant ID"
+regex = "(?i)(?:azure[\\s_-]*tenant[\\s_-]*id|azureTenantId|AZURE_TENANT_ID)\\s*[:=]\\s*[\"']?([0-9A-Fa-f-]{32})[\"']?"
+tags = ["Azure", "key"]
+[[rules]]
+id = "azure-client-secret"
+description = "Azure Client Secret"
+# If your secrets can have underscores or dashes, add them to the character class
+regex = "(?i)(?:azure[\\s_-]*client[\\s_-]*secret|azureClientSecret|AZURE_CLIENT_SECRET)\\s*[:=]\\s*[\"']?([A-Za-z0-9+/=_-]{20,})[\"']?"
+tags = ["Azure", "key"]
+
+
+
+
+
+
+
+
+
+
+
+
 # -------------------------------
 # AWS Keys
 # -------------------------------
 [[rules]]
 id = "aws-access-key"
 description = "AWS Access Key"
-regex = '''(?i)\b(?:aws[\s_-]*access[\s_-]*key(?:_id)?|awsAccessKeyId)\s*[:=]\s*["']?(AKIA[0-9A-Z]{16})["']?'''
+regex = "(?i)\\b(?:aws[\\s_-]*access[\\s_-]*key(?:_id)?|awsAccessKeyId)\\s*[:=]\\s*[\"']?(AKIA[0-9A-Z]{16})[\"']?"
 tags = ["AWS", "key"]
 
 [[rules]]
 id = "aws-secret-key"
 description = "AWS Secret Key"
-regex = '''(?i)\b(?:aws[\s_-]*secret[\s_-]*(?:access[\s_-]*)?key|awsSecretAccessKey)\s*[:=]\s*["']?([A-Za-z0-9/+=]{40})["']?'''
+regex = "(?i)\\b(?:aws[\\s_-]*secret[\\s_-]*(?:access[\\s_-]*)?key|awsSecretAccessKey)\\s*[:=]\\s*[\"']?([A-Za-z0-9/+=]{40})[\"']?"
 tags = ["AWS", "key"]
 entropy = 4.5
 
-# -------------------------------
-# Azure Keys
-# -------------------------------
-[[rules]]
-id = "azure-client-id"
-description = "Azure Client ID"
-regex = '''(?i)\b(?:azure[\s_-]*client[\s_-]*id|azureClientId)\s*[:=]\s*["']?([0-9a-fA-F-]{36})["']?'''
-tags = ["Azure", "key"]
 
-[[rules]]
-id = "azure-tenant-id"
-description = "Azure Tenant ID"
-regex = '''(?i)\b(?:azure[\s_-]*tenant[\s_-]*id|azureTenantId)\s*[:=]\s*["']?([0-9a-fA-F-]{36})["']?'''
-tags = ["Azure", "key"]
 
-[[rules]]
-id = "azure-client-secret"
-description = "Azure Client Secret"
-regex = '''(?i)\b(?:azure[\s_-]*client[\s_-]*secret|azureClientSecret)\s*[:=]\s*["']?([A-Za-z0-9+/=]{20,})["']?'''
-tags = ["Azure", "key"]
-entropy = 4.5
 
 # -------------------------------
-# Flexible Patterns (replaces JSON, YAML, combined)
+# Flexible Patterns
 # -------------------------------
 [[rules]]
 id = "flexible-patterns"
 description = "Flexible AWS/Azure Key Patterns"
-regex = '''(?i)(aws_[a-z_]*key[\s:=-]*["']?[A-Za-z0-9/+=-]{16,40}["']?|azure_[a-z_]*id[\s:=-]*["']?[0-9a-fA-F-]{36}["']?|azure_[a-z_]*secret[\s:=-]*["']?[A-Za-z0-9+/=]{20,}["']?)'''
+regex = "(?i)(aws_[a-z_]*key[\\s:=-]*[\"']?[A-Za-z0-9/+=-]{16,40}[\"']?|azure_[a-z_]*id[\\s:=-]*[\"']?[0-9a-fA-F-]{36}[\"']?|azure_[a-z_]*secret[\\s:=-]*[\"']?[A-Za-z0-9+/=]{20,}[\"']?)"
 tags = ["Flexible", "AWS", "Azure", "key"]
 
+
 # -------------------------------
-# Third-party API & Service Tokens
+# Stripe Keys (Secret + Publishable)
 # -------------------------------
 [[rules]]
 id = "stripe-api-key"
-description = "Stripe API Key"
-regex = '''(?i)\bsk_live_[0-9a-zA-Z]{24}\b'''
+description = "Stripe Secret Key"
+regex = "(?i)\\b(sk_live_|sk_test_)[0-9A-Za-z]{16,64}\\b"
 tags = ["Stripe", "key"]
 
 [[rules]]
+id = "stripe-publishable-key"
+description = "Stripe Publishable Key"
+regex = "(?i)\\b(pk_live_|pk_test_)[0-9A-Za-z]{16,64}\\b"
+tags = ["Stripe", "publishable"]
+
+
+# -------------------------------
+# Slack Token
+# -------------------------------
+[[rules]]
 id = "slack-token"
 description = "Slack Token"
-regex = '''(?i)\bxox[baprs]-[0-9A-Za-z]{10,48}\b'''
+regex = "(?i)\\bxox[baprs]-[0-9A-Za-z]{10,48}\\b"
 tags = ["Slack", "token"]
 
-[[rules]]
-id = "google-api-key"
-description = "Google API Key"
-regex = '''(?i)\bAIza[0-9A-Za-z-_]{35}\b'''
-tags = ["Google", "key"]
 
+# -------------------------------
+# Dropbox
+# -------------------------------
+[[rules]]
+id = "dropbox-api-key"
+description = "Dropbox API Key"
+regex = "(?i)\\bsl\\.[A-Za-z0-9_-]{15,}\\b"
+tags = ["Dropbox", "key"]
+
+
+# -------------------------------
+# Google / Firebase
+# -------------------------------
+# Old rule commented out:
+# [[rules]]
+# id = "google-api-key"
+# description = "Google API Key"
+# regex = "(?i)\\bAIza[0-9A-Za-z-_]{15,80}\\b"
+# tags = ["Google", "key"]
+
+[[rules]]
+id = "gcp-or-firebase-api-key"
+description = "Google or Firebase API Key"
+regex = "(?i)\\bAIza[0-9A-Za-z-_]{10,80}\\b"
+tags = ["Google", "Firebase", "key"]
+
+[[rules]]
+id = "firebase-database-url"
+description = "Firebase Database URL"
+regex = "(?i)https://[A-Za-z0-9-]+\\.firebaseio\\.com"
+tags = ["Firebase", "url"]
+
+
+# -------------------------------
+# Heroku API Key
+# -------------------------------
 [[rules]]
 id = "heroku-api-key"
 description = "Heroku API Key"
-regex = '''(?i)\bheroku[a-z0-9]{30,32}\b'''
+regex = "(?i)\\bheroku[a-z0-9]{30,32}\\b"
 tags = ["heroku", "key", "api"]
 
+
+# -------------------------------
+# DigitalOcean Token
+# -------------------------------
 [[rules]]
 id = "digitalocean-token"
 description = "DigitalOcean Token"
-regex = '''(?i)\bdop_v1_[0-9a-fA-F]{64}\b'''
+regex = "(?i)\\bdop_v1_[0-9A-Fa-f]{32,64}\\b"
 tags = ["DigitalOcean", "token"]
 
-[[rules]]
-id = "github-personal-access-token"
-description = "GitHub Personal Access Token"
-regex = '''(?i)\bghp_[0-9A-Za-z]{36}\b'''
-tags = ["GitHub", "token"]
 
+# -------------------------------
+# Twilio
+# -------------------------------
 [[rules]]
 id = "twilio-api-key"
 description = "Twilio API Key"
-regex = '''(?i)\bSK[0-9a-fA-F]{32}\b'''
+regex = "(?i)\\bSK[0-9a-fA-F]{32}\\b"
 tags = ["Twilio", "key"]
 
+
+# -------------------------------
+# Telegram Bot Token
+# -------------------------------
 [[rules]]
 id = "telegram-bot-token"
 description = "Detects Telegram Bot API Tokens"
-regex = '''(?i)(?:^|\s)(\d{8,10}:[a-zA-Z0-9_-]{35})(?:\s|$)'''
+regex = "(?i)(?:^|\\s)(\\d{8,10}:[a-zA-Z0-9_-]{35})(?:\\s|$)"
 tags = ["telegram", "key"]
 
+
+# -------------------------------
+# Facebook Access Token
+# -------------------------------
 [[rules]]
 id = "facebook-access-token"
 description = "Facebook Access Token"
-regex = '''(?i)\bEAAC[a-zA-Z0-9]{32,}\b'''
+regex = "(?i)\\bEAAC[a-zA-Z0-9]{16,}\\b"
 tags = ["Facebook", "token"]
 entropy = 4.0
 
+
+# -------------------------------
+# GitLab Personal Access Token
+# -------------------------------
 [[rules]]
 id = "gitlab-pat"
 description = "GitLab Personal Access Token"
-regex = '''(?i)\bglpat-[0-9a-zA-Z]{20,}\b'''
+regex = "(?i)\\bglpat-[0-9a-zA-Z]{20,}\\b"
 tags = ["GitLab", "token"]
 
+
+# -------------------------------
+# Generic API Token
+# -------------------------------
 [[rules]]
 id = "generic-api-token"
 description = "Generic API Token Pattern"
-regex = '''(?i)\b(?:api[_-]?token|token)[\s:=]+["']?([A-Za-z0-9]{20,})["']?\b'''
+regex = "(?i)\\b(?:api[_-]?token|token)[\\s:=]+[\"']?([A-Za-z0-9]{16,})[\"']?\\b"
 tags = ["generic", "token"]
 
+
+# -------------------------------
+# Sentry DSN
+# -------------------------------
 [[rules]]
 id = "sentry-dsn"
 description = "Sentry DSN"
-regex = '''(?i)https:\/\/[0-9a-z]+:[0-9a-z]+@o\d+\.ingest\.sentry\.io\/\d+'''
+regex = "(?i)https:\\/\\/[0-9a-z]+:[0-9a-z]+@o\\d+\\.ingest\\.sentry\\.io\\/\\d+"
 tags = ["sentry", "dsn", "token"]
 
+
+# -------------------------------
+# Mailgun / Postmark / Pusher
+# -------------------------------
 [[rules]]
 id = "mailgun-api-key"
 description = "Mailgun API Key"
-regex = '''(?i)\bmailgun[ _-]*api[ _-]*key[ _:=]*["']?(key-[0-9a-zA-Z]{32,})["']?'''
+regex = "(?i)\\bmailgun[ _-]*api[ _-]*key[ _:=]*[\"']?(key-[0-9a-zA-Z]{32,})[\"']?"
 tags = ["mailgun", "key", "api"]
 
 [[rules]]
 id = "postmark-api-key"
 description = "Postmark API Key"
-regex = '''(?i)\bpostmark[ _-]*api[ _-]*key[ _:=]*["']?([0-9a-zA-Z]{40,})["']?'''
+regex = "(?i)\\bpostmark[ _-]*api[ _-]*key[ _:=]*[\"']?([0-9a-zA-Z]{40,})[\"']?"
 tags = ["postmark", "key", "api"]
 
 [[rules]]
 id = "pusher-api-key"
 description = "Pusher API Key"
-regex = '''(?i)\bpusher[ _-]*key[ _:=]*["']?([0-9a-zA-Z]{20,})["']?'''
+regex = "(?i)\\bpusher[ _-]*key[ _:=]*[\"']?([0-9a-zA-Z]{20,})[\"']?"
 tags = ["pusher", "key", "api"]
 
+
+# -------------------------------
+# Square Access Token
+# -------------------------------
 [[rules]]
 id = "square-access-token"
 description = "Square Access Token"
-regex = '''(?i)\bsq0atp-[0-9A-Za-z\-_]{22,}'''
+regex = "(?i)\\bsq0atp-[0-9A-Za-z\\-_]{22,}"
 tags = ["square", "token"]
 
+
+# -------------------------------
+# Intercom Token
+# -------------------------------
 [[rules]]
 id = "intercom-token"
 description = "Intercom Token"
-regex = '''(?i)\bintercom[ _-]*token[ _:=]*["']?([0-9a-zA-Z]{30,})["']?'''
+regex = "(?i)\\bintercom[ _-]*token[ _:=]*[\"']?([0-9a-zA-Z]{30,})[\"']?"
 tags = ["intercom", "token"]
 
+
 # -------------------------------
-# Other Sensitive Patterns
+# RSA Private Key
 # -------------------------------
 [[rules]]
 id = "rsa-private-key"
 description = "RSA Private Key"
-regex = '''(?i)(-----BEGIN RSA PRIVATE KEY-----[\s\S]*?-----END RSA PRIVATE KEY-----)'''
+regex = "(?i)(-----BEGIN RSA PRIVATE KEY-----[\\s\\S]*?-----END RSA PRIVATE KEY-----)"
 tags = ["RSA", "private key"]
 
+
+# -------------------------------
+# JWT Token
+# -------------------------------
 [[rules]]
 id = "jwt-token"
 description = "JWT Token"
-regex = '''(?i)\beyJ[a-zA-Z0-9-_]+?\.[a-zA-Z0-9-_]+?\.[a-zA-Z0-9-_]+\b'''
+regex = "(?i)\\beyJ[a-zA-Z0-9-_]+?\\.[a-zA-Z0-9-_]+?\\.[a-zA-Z0-9-_]+\\b"
 tags = ["JWT", "token"]
 
+
+# -------------------------------
+# Generic Password
+# -------------------------------
 [[rules]]
 id = "generic-password"
 description = "Detect typical passwords, including symbols. Large allowlist for code placeholders."
-modifiers = ["i"]  # All case-insensitive
+modifiers = ["i"]
 tags = ["password", "generic", "hash", "base64"]
+regex = "(^|\\s)(password|pass|pwd|passwd|secret|login_password)\\s*[:=]\\s*[\"']?([^\\s\"']{8,}|[A-Fa-f0-9]{4,8})[\"']?(\\s|$)"
 
-# We cannot use lookahead or lookbehind in RE2.
-# So we wrap it with a start whitespace/beginning and end with whitespace/EOL group:
-regex = '''(^|\s)(password|pass|pwd|passwd|secret|login_password)\s*[:=]\s*["']?([^\s"']{8,}|[A-Fa-f0-9]{4,8})["']?(\s|$)'''
 
-allowlist = {
-  regexes = [
-    # Code references / placeholders
-    "(?i)\\bclass\\s+.*(password|pass|pwd|passwd|secret|login_password)",
-    "(?i)\\bdef\\s+.*(password|pass|pwd|passwd|secret|login_password)",
-    "(?i)\\bfunction\\s+.*(password|pass|pwd|passwd|secret|login_password)",
-    "(?i)argparse.*add_argument\\(.*password",
-    "(?i)click\\.option\\(.*password",
-    "(?i)(verify|check|hash|compare|encrypt)_(password|pass|pwd|passwd|secret)",
-    "(?i)(password|pass|pwd|passwd|secret)_?(hash|hashed|verify|check|compare|encrypt|encryption)",
-    "(?i)password_reset",
-    "(?i)password_reset_token",
-    "(?i)password_prompt",
-    "(?i)password_confirm",
-    "(?i)password_valid",
-    "(?i)password_form",
-    "(?i)password_strong",
-    "(?i)password_check",
-    "(?i)password_length",
-    "(?i)password_verify",
-    "(?i)password_hash",
-    "(?i)prompt for password",
-    "(?i)enter your password",
-    "(?i)chang(e|ing) password",
-    "(?i)password\\s*:\\s*Optional",
-    "(?i)JSON\\.stringify\\(\\{\\s*(password|confirmPassword)",
-    "(?i)@param\\s+(password|pass|pwd|passwd|secret)",
-    "(?i)@return\\s+password",
-    "(?i)@throws\\s+password",
-    "(?i)@exception\\s+password",
-
-    # Dummy placeholder values
-    "(?i)password\\s*[:=]\\s*[\"']?null[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?N/A[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?none[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?unknown[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?undefined[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?changeme[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?default[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?example[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?test[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?placeholder[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?dummy[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?foo[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?bar[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?enter[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?choose[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?env[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?variable[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?mypassword[\"']?",
-    "(?i)password\\s*[:=]\\s*[\"']?yourpassword[\"']?",
-
-    # Common false positives
-    "(?i)self\\.password",
-    "(?i)user\\s*=\\s*user,\\s*password\\s*=\\s*password",
-    "(?i)/etc/passwd",
-    "(?i)/etc/shadow",
-    "(?i)\\*\\*Default password:\\s*password\\s*\\(",
-    "(?i)docker exec.*-e.*PASSWORD=",
-    "(?i)public function.*password",
-    "(?i)private function.*password",
-    "(?i)sshpass",
-    "(?i)bcrypt password",
-    "(?i)argon2 password",
-    "(?i)RSA password",
-    "(?i)keystore password",
-    "(?i)update your password",
-    "(?i)machinectl set-password",
-    "(?i)NVMe set password",
-    "(?i)terraform.*variable.*password",
-    "(?i)kubernetes.*secret.*password"
-  ]
-}
-
-[[rules]]
-id = "dropbox-api-key"
-description = "Dropbox API Key"
-regex = '''(?i)\bsl\.[A-Za-z0-9_-]{15,}\b'''
-tags = ["dropbox", "key"]
-allowlist = { 
-  regexes = [
-    "(?i)^sl\\.isconcatspreadable$",
-    "(?i)^sl\\.splice$",
-    "(?i)^sl\\.iterator$"
-  ] 
-}
-
-# -------------------------------
-# Global Allowlists
-# -------------------------------
-[[allowlists]]
-description = "Ignore GUIDs and Visual Studio project identifiers"
-regexes = [
-    "\\b[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}\\b",
-    "Project\\(\\\"\\{[A-Fa-f0-9-]+\\}\\\"\\) = \\\"[A-Za-z0-9_-]+\\\""
-]
-
+# ----------------------------------------------------------------
+# Single [allowlist] block
+# ----------------------------------------------------------------
 [allowlist]
-description = "Allow common false positives for tokens"
+description = "Ignore certain GUIDs, Visual Studio IDs, and common false positives"
 regexes = [
-    "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890",
-    "0000000000:abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    "Twitter,? Inc\\.",
-    "Licensed under MIT",
-    "github.com/twbs/bootstrap/blob/master/LICENSE"
+  "\\b[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}\\b",
+  "Project\\(\\\"\\{[A-Fa-f0-9-]+\\}\\\"\\) = \\\"[A-Za-z0-9_-]+\\\"",
+  "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890",
+  "0000000000:abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  "Twitter,? Inc\\.",
+  "Licensed under MIT",
+  "github.com/twbs/bootstrap/blob/master/LICENSE"
 ]
